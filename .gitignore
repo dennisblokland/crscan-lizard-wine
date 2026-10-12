@@ -1,0 +1,7 @@
+*.o
+*.lib
+*.dll
+*.bin
+calib*.txt
+prefix/
+__pycache__/

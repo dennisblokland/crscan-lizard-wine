@@ -1,0 +1,47 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shims:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm python3-pip && pip install pefile
+      - name: Build shims
+        run: |
+          shims/hcamera/build.sh
+          shims/qtmm/build.sh
+          shims/cvcap/build.sh
+      - name: Check exports
+        run: |
+          python3 - <<'PY'
+          import pefile
+          expect = {
+              "shims/hcamera/HCamera_x64.dll": {"hEnumVideoDevice", "hFreeVideoDevice", "hRclReadFlash"},
+              "shims/qtmm/Qt5Multimedix.dll": {
+                  "?description@QCameraInfo@@QEBA?AVQString@@XZ",
+                  "??1QCameraInfo@@QEAA@XZ",
+                  "?deviceName@QCameraInfo@@QEBA?AVQString@@XZ",
+                  "?availableCameras@QCameraInfo@@SA?AV?$QList@VQCameraInfo@@@@W4Position@QCamera@@@Z",
+                  "??0QCameraInfo@@QEAA@AEBV0@@Z",
+              },
+              "shims/cvcap/opencv_highgux2413.dll": {"??0VideoCapture@cv@@QEAA@XZ", "??1VideoCapture@cv@@UEAA@XZ"},
+          }
+          for path, names in expect.items():
+              got = {s.name.decode() for s in pefile.PE(path).DIRECTORY_ENTRY_EXPORT.symbols}
+              assert names <= got, (path, names - got)
+              print("ok", path)
+          PY
+      - name: Python syntax
+        run: python3 -m py_compile tools/*.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shims
+          path: |
+            shims/hcamera/HCamera_x64.dll
+            shims/qtmm/Qt5Multimedix.dll
+            shims/cvcap/opencv_highgux2413.dll
