@@ -7,7 +7,8 @@ cv::VideoCapture::set() as a UDP datagram "<dshow-index> <prop> <value*1000>"
 to 127.0.0.1:47811; this helper maps it to a V4L2 control.
 
 DirectShow index N is the N-th V4L2 video-capture node in numeric order, the
-same order Wine's devenum uses.
+same order Wine's devenum uses. Nodes are re-enumerated for every setting so a
+replugged scanner (new /dev/video numbers) is still addressed correctly.
 """
 import fcntl, glob, os, re, socket, struct, subprocess, sys
 
@@ -57,9 +58,13 @@ CONTROLS = {
 }
 
 
+def describe(nodes):
+    return ", ".join(f"{i}={n}" for i, n in enumerate(nodes))
+
+
 def main():
     nodes = capture_nodes()
-    print("capture nodes:", ", ".join(f"{i}={n}" for i, n in enumerate(nodes)), flush=True)
+    print("capture nodes:", describe(nodes), flush=True)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.bind(("127.0.0.1", PORT))
@@ -71,7 +76,13 @@ def main():
             index, prop, milli = (int(x) for x in data.split())
         except ValueError:
             continue
-        if prop not in CONTROLS or not 0 <= index < len(nodes):
+        if prop not in CONTROLS:
+            continue
+        current = capture_nodes()
+        if current != nodes:
+            nodes = current
+            print("capture nodes changed:", describe(nodes), flush=True)
+        if not 0 <= index < len(nodes):
             continue
         name, conv = CONTROLS[prop]
         value = conv(milli / 1000.0)

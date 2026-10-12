@@ -14,6 +14,8 @@ export WINEDEBUG="${WINEDEBUG:-err+all,fixme-all}"
 # of the surface ("idx=-1, the index is out of boundary") and meshes come out empty.
 export WINEDLLOVERRIDES="vcomp140=n,b${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
 mkdir -p "$WINEPREFIX"
+# keep the previous session's log for diagnosing
+[ -f "$APP/crstudio.log" ] && mv -f "$APP/crstudio.log" "$APP/crstudio.log.1"
 pkill -f "tools/lizard_ctrl_bridge.py" 2>/dev/null
 python3 -I "$REPO/tools/lizard_ctrl_bridge.py" > "$APP/ctrl_bridge.log" 2>&1 &
 BRIDGE=$!
